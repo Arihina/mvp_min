@@ -1,4 +1,8 @@
+import pytesseract
+from PIL import Image
+import io
 from fastapi import FastAPI, UploadFile, File
+
 
 app = FastAPI()
 
@@ -11,10 +15,22 @@ async def upload_image(file: UploadFile = File(...)):
 
     contents = await file.read()
 
-    with open(f"images/{file.filename}", "wb") as f:
-        f.write(contents)
+    # with open(f"images/{file.filename}", "wb") as f:
+    #     f.write(contents)
 
-    return {"filename": file.filename}
+    try:
+        image = Image.open(io.BytesIO(contents))
+
+        extracted_text = pytesseract.image_to_string(
+            image, lang='rus+eng')
+
+        return {
+            "filename": file.filename,
+            "extracted_text": extracted_text,
+            "text_length": len(extracted_text)
+        }
+    except Exception as e:
+        return {"error": f"OCR failed: {str(e)}"}
 
 
 # audio

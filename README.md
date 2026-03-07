@@ -1,3 +1,11 @@
+Tesseract OCR
+```
+sudo apt-get install tesseract-ocr
+sudo apt-get install tesseract-ocr-rus
+sudo apt install ffmpeg
+```
+
+
 Run server:
 ```uvicorn main:app --reload```
 
