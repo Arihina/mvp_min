@@ -1,7 +1,10 @@
-Tesseract OCR
+Install Tesseract OCR
 ```
 sudo apt-get install tesseract-ocr
 sudo apt-get install tesseract-ocr-rus
+```
+Install ffmpeg
+```
 sudo apt install ffmpeg
 ```
 

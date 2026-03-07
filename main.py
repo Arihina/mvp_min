@@ -2,9 +2,11 @@ import pytesseract
 from PIL import Image
 import io
 from fastapi import FastAPI, UploadFile, File
+from faster_whisper import WhisperModel
 
 
 app = FastAPI()
+model = WhisperModel("base", device="cpu")
 
 
 # JPG
@@ -37,11 +39,17 @@ async def upload_image(file: UploadFile = File(...)):
 @app.post("/upload/audio")
 async def upload_audio(file: UploadFile = File(...)):
     contents = await file.read()
+    txt = ""
 
     with open(f"audio/{file.filename}", "wb") as f:
         f.write(contents)
 
-    return {"filename": file.filename}
+    segments, info = model.transcribe(f"audio/{file.filename}")
+
+    for segment in segments:
+        txt += segment.text
+
+    return {"text": txt}
 
 
 # txt
