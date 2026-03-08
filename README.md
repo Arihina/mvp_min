@@ -7,6 +7,14 @@ Install ffmpeg
 ```
 sudo apt install ffmpeg
 ```
+Install Ollama
+```
+curl -fsSl https://ollama.com/install.sh | sh
+```
+Install Gemma
+```
+ollama pull gemma2:2b
+```
 
 
 Run server:
