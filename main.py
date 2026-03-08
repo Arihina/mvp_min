@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 import numpy as np
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pathlib import Path
@@ -218,20 +219,32 @@ def rag_ollama_answer(user_question, chat_history):
 app = FastAPI()
 
 
-# JPG
+# Images
+ALLOWED_IMAGE_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/bmp",
+    "image/gif",
+    "image/tiff",
+    "image/webp"
+}
+
+
 @app.post("/upload/image")
 async def upload_image(file: UploadFile = File(...)):
-    if file.content_type != "image/jpeg":
-        return {"error": "Only JPG allowed"}
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported image type: {file.content_type}. "
+            f"Allowed types: {', '.join(ALLOWED_IMAGE_TYPES)}"
+        )
 
     contents = await file.read()
-
-    # with open(f"images/{file.filename}", "wb") as f:
-    #     f.write(contents)
 
     try:
         image = Image.open(io.BytesIO(contents))
 
+        # OCR
         extracted_text = pytesseract.image_to_string(
             image, lang='rus+eng')
 
@@ -240,8 +253,9 @@ async def upload_image(file: UploadFile = File(...)):
             "extracted_text": extracted_text,
             "text_length": len(extracted_text)
         }
+
     except Exception as e:
-        return {"error": f"OCR failed: {str(e)}"}
+        raise HTTPException(status_code=500, detail=f"OCR failed: {str(e)}")
 
 
 # audio
