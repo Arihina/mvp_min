@@ -15,7 +15,13 @@ Install Gemma
 ```
 ollama pull gemma2:2b
 ```
+Install dependencies
+```
+python3 -m venv venv
+source venv/bin/activate
+pip3 install -r requirements.txt
 
+```
 
 Run server:
 ```uvicorn main:app --reload```
