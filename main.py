@@ -13,7 +13,7 @@ import ollama
 import faiss
 
 
-model = WhisperModel("base", device="cpu")
+audio_model = WhisperModel("base", device="cpu")
 
 context_dir = Path("./context")
 
@@ -106,20 +106,20 @@ def build_general_prompt(history, user_question):
     chat = format_chat_history(history)
 
     return f"""
-Ты русскоязычный AI ассистент.
-Отвечай ТОЛЬКО на русском языке.
-Это общий вопрос, не связанный с документами.
-Отвечай свободно, как обычный ассистент.
-Источники указывать НЕ НУЖНО.
+    Ты русскоязычный AI ассистент.
+    Отвечай ТОЛЬКО на русском языке.
+    Это общий вопрос, не связанный с документами.
+    Отвечай свободно, как обычный ассистент.
+    Источники указывать НЕ НУЖНО.
 
-Предыдущий диалог:
-{chat}
+    Предыдущий диалог:
+    {chat}
 
-Вопрос пользователя:
-{user_question}
+    Вопрос пользователя:
+    {user_question}
 
-Ответ:
-""".strip()
+    Ответ:
+    """.strip()
 
 
 def build_rag_prompt(retrieved_docs, history, user_question):
@@ -134,23 +134,23 @@ def build_rag_prompt(retrieved_docs, history, user_question):
     chat = format_chat_history(history)
 
     return f"""
-Ты русскоязычный AI ассистент.
-Отвечай ТОЛЬКО на русском языке.
-Используй ТОЛЬКО ту информацию из контекста,
-которая действительно нужна для ответа.
-Если информация не использовалась — НЕ УПОМИНАЙ источник.
-
-Контекст:
-{context}
-
-Предыдущий диалог:
-{chat}
-
-Вопрос пользователя:
-{user_question}
-
-Ответ:
-""".strip()
+    Ты русскоязычный AI ассистент.
+    Отвечай ТОЛЬКО на русском языке.
+    Используй ТОЛЬКО ту информацию из контекста,
+    которая действительно нужна для ответа.
+    Если информация не использовалась — НЕ УПОМИНАЙ источник.
+    
+    Контекст:
+    {context}
+    
+    Предыдущий диалог:
+    {chat}
+    
+    Вопрос пользователя:
+    {user_question}
+    
+    Ответ:
+    """.strip()
 
 
 def retrieve_docs(query, top_k=3):
@@ -298,7 +298,7 @@ async def upload_audio(file: UploadFile = File(...)):
     with open(audio_path, "wb") as f:
         f.write(contents)
 
-    segments, info = model.transcribe(audio_path)
+    segments, info = audio_model.transcribe(f"audio/{file.filename}")
     user_text = " ".join(segment.text for segment in segments)
 
     answer, _ = rag_ollama_answer(user_text, chat_history)
