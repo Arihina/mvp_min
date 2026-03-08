@@ -8,6 +8,7 @@ import io
 from fastapi import FastAPI, UploadFile, File
 from faster_whisper import WhisperModel
 from sentence_transformers import SentenceTransformer
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import ollama
 import faiss
 
@@ -17,6 +18,10 @@ model = WhisperModel("base", device="cpu")
 context_dir = Path("./context")
 
 embed_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+
+model_name = "UrukHan/t5-russian-summarization"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
 
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=600,
@@ -216,6 +221,26 @@ def rag_ollama_answer(user_question, chat_history):
     return answer, chat_history
 
 
+def summarization(text):
+    inputs = tokenizer(
+        text,
+        return_tensors="pt",
+        # max_length=max_input_length,
+        truncation=True
+    )
+
+    summary_ids = model.generate(
+        **inputs,
+        # max_length=max_output_length,
+        # num_beams=4,
+        # early_stopping=True
+    )
+
+    summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+
+    return summary
+
+
 app = FastAPI()
 
 
@@ -244,18 +269,24 @@ async def upload_image(file: UploadFile = File(...)):
     try:
         image = Image.open(io.BytesIO(contents))
 
-        # OCR
         extracted_text = pytesseract.image_to_string(
             image, lang='rus+eng')
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"OCR failed: {str(e)}")
+
+    try:
+        response = summarization(extracted_text)
 
         return {
             "filename": file.filename,
             "extracted_text": extracted_text,
+            "summarization": response,
             "text_length": len(extracted_text)
         }
-
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"OCR failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Summarization failed: {str(e)}")
 
 
 # audio
