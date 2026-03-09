@@ -5,10 +5,11 @@ from pathlib import Path
 import pytesseract
 from PIL import Image
 import io
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Body
 from faster_whisper import WhisperModel
 from sentence_transformers import SentenceTransformer
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from fastapi.middleware.cors import CORSMiddleware
 import ollama
 import faiss
 
@@ -243,6 +244,16 @@ def summarization(text):
 
 app = FastAPI()
 
+origins = ['http://localhost:5173', 'https://localhost:5173']
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # Images
 ALLOWED_IMAGE_TYPES = {
@@ -281,7 +292,7 @@ async def upload_image(file: UploadFile = File(...)):
         return {
             "filename": file.filename,
             "extracted_text": extracted_text,
-            "summarization": response,
+            "answer": response,
             "text_length": len(extracted_text)
         }
     except Exception as e:
@@ -312,15 +323,9 @@ async def upload_audio(file: UploadFile = File(...)):
 
 # txt
 @app.post("/upload/text")
-async def upload_text(file: UploadFile = File(...)):
-    if file.content_type != "text/plain":
-        return {"error": "Only txt allowed"}
-
-    text = (await file.read()).decode("utf-8")
-
-    answer, _ = rag_ollama_answer(text, chat_history)
-
+async def upload_text(item: dict = Body(...)):
+    answer, _ = rag_ollama_answer(item['message'], chat_history)
     return {
-        "filename": file.filename,
+        "sources": None,
         "answer": answer
     }
