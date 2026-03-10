@@ -23,7 +23,16 @@ pip3 install -r requirements.txt
 
 ```
 
+SSL certificate generation
+```
+openssl req -x509 -newkey rsa:4096 \
+-keyout key.pem \
+-out cert.pem \
+-days 365 \
+-nodes
+```
+
 Run server:
-```uvicorn main:app --reload```
+```python3 main.py```
 
 Swagger UI (docs) http://127.0.0.1:8000/docs/

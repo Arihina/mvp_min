@@ -10,7 +10,10 @@ from faster_whisper import WhisperModel
 from sentence_transformers import SentenceTransformer
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import ollama
+import uvicorn
 import faiss
 
 
@@ -243,6 +246,7 @@ def summarization(text):
 
 
 app = FastAPI()
+app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
 
 origins = ['http://localhost:5173', 'https://localhost:5173']
 
@@ -329,3 +333,19 @@ async def upload_text(item: dict = Body(...)):
         "sources": None,
         "answer": answer
     }
+
+
+@app.get("/")
+async def serve_frontend():
+    return FileResponse("dist/index.html")
+
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8443,
+        ssl_keyfile="key.pem",
+        ssl_certfile="cert.pem",
+        reload=True
+    )
