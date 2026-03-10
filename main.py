@@ -12,7 +12,7 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-import ollama
+from ollama import Client
 import uvicorn
 import faiss
 
@@ -22,6 +22,8 @@ audio_model = WhisperModel("base", device="cpu")
 context_dir = Path("./context")
 
 embed_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+
+ollama_client = Client(host="http://localhost:11434")
 
 model_name = "UrukHan/t5-russian-summarization"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -206,7 +208,7 @@ def rag_ollama_answer(user_question, chat_history):
         else:
             prompt = build_rag_prompt(retrieved, chat_history, user_question)
 
-    response = ollama.chat(
+    response = ollama_client.chat(
         model='gemma2:2b',
         messages=[{"role": "user", "content": prompt}]
     )
