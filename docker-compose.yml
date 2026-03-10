@@ -1,0 +1,28 @@
+services:
+
+  app:
+    build: .
+    container_name: rag_fastapi
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./audio:/app/audio
+      - ./context:/app/context
+      - ./dist:/app/dist
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama_server
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  ollama_models:

@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse
 from ollama import Client
 import uvicorn
 import faiss
+import os
 
 
 audio_model = WhisperModel("base", device="cpu")
@@ -23,7 +24,8 @@ context_dir = Path("./context")
 
 embed_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
-ollama_client = Client(host="http://localhost:11434")
+ollama_client = Client(host=os.getenv("OLLAMA_HOST", "http://ollama:11434"))
+# ollama_client = ollama.Client(host="http://localhost:11434")  
 
 model_name = "UrukHan/t5-russian-summarization"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
