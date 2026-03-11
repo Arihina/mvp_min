@@ -13,7 +13,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from ollama import Client
+import ollama
 import uvicorn
+from rank_bm25 import BM25Okapi
 import faiss
 import os
 
@@ -24,8 +26,8 @@ context_dir = Path("./context")
 
 embed_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
-ollama_client = Client(host=os.getenv("OLLAMA_HOST", "http://ollama:11434"))
-# ollama_client = ollama.Client(host="http://localhost:11434")  
+# ollama_client = Client(host=os.getenv("OLLAMA_HOST", "http://ollama:11434"))
+ollama_client = ollama.Client(host="http://localhost:11434")
 
 model_name = "UrukHan/t5-russian-summarization"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -57,6 +59,31 @@ def process_document(file_path, text_splitter, embed_model):
     return results
 
 
+def bm25_search(query, top_k=3):
+    tokenized_query = query.lower().split()
+
+    scores = bm25.get_scores(tokenized_query)
+
+    ranked_indices = np.argsort(scores)[::-1][:top_k]
+
+    results = []
+
+    for idx in ranked_indices:
+        score = float(scores[idx])
+
+        if score <= 0:
+            continue
+
+        results.append({
+            "text": documents[idx],
+            "source": metadatas[idx]["source"],
+            "chunk_id": metadatas[idx]["chunk_id"],
+            "score": score
+        })
+
+    return results
+
+
 documents = []
 metadatas = []
 all_embeddings = []
@@ -74,6 +101,8 @@ for file in context_dir.glob("*.txt"):
         all_embeddings.append(chunk_data["embedding"])
 
 embeddings = np.vstack(all_embeddings)
+tokenized_docs = [doc.lower().split() for doc in documents]
+bm25 = BM25Okapi(tokenized_docs)
 
 dimension = embeddings.shape[1]
 index = faiss.IndexFlatIP(dimension)
@@ -161,7 +190,7 @@ def build_rag_prompt(retrieved_docs, history, user_question):
     """.strip()
 
 
-def retrieve_docs(query, top_k=3):
+def retrieve_docs_old(query, top_k=3):
     query_embedding = embed_model.encode(
         [query],
         convert_to_numpy=True,
@@ -186,7 +215,48 @@ def retrieve_docs(query, top_k=3):
     return results
 
 
-def find_used_sources(answer: str, retrieved_docs):
+def retrieve_docs(query, top_k=3):
+
+    query_embedding = embed_model.encode(
+        [query],
+        convert_to_numpy=True,
+        normalize_embeddings=True
+    )
+
+    scores, idxs = index.search(query_embedding, top_k)
+
+    vector_results = []
+    for rank, idx in enumerate(idxs[0]):
+        score = float(scores[0][rank])
+
+        if score >= RETRIEVAL_THRESHOLD:
+            vector_results.append({
+                "text": documents[idx],
+                "source": metadatas[idx]["source"],
+                "chunk_id": metadatas[idx]["chunk_id"],
+                "score": score
+            })
+
+    bm25_results = bm25_search(query, top_k=top_k)
+
+    combined = vector_results + bm25_results
+
+    unique = {}
+
+    for r in combined:
+        key = (r["source"], r["chunk_id"])
+
+        if key not in unique or unique[key]["score"] < r["score"]:
+            unique[key] = r
+
+    results = list(unique.values())
+
+    results = sorted(results, key=lambda x: x["score"], reverse=True)
+
+    return results[:top_k]
+
+
+def find_used_sources(answer, retrieved_docs):
     used = set()
     answer_lower = answer.lower()
 
@@ -263,7 +333,6 @@ app.add_middleware(
 )
 
 
-# Images
 ALLOWED_IMAGE_TYPES = {
     "image/jpeg",
     "image/png",
@@ -308,7 +377,6 @@ async def upload_image(file: UploadFile = File(...)):
             status_code=500, detail=f"Summarization failed: {str(e)}")
 
 
-# audio
 @app.post("/upload/audio")
 async def upload_audio(file: UploadFile = File(...)):
     contents = await file.read()
@@ -329,7 +397,6 @@ async def upload_audio(file: UploadFile = File(...)):
     }
 
 
-# txt
 @app.post("/upload/text")
 async def upload_text(item: dict = Body(...)):
     answer, _ = rag_ollama_answer(item['message'], chat_history)
@@ -341,6 +408,13 @@ async def upload_text(item: dict = Body(...)):
 
 @app.get("/")
 async def serve_frontend():
+    return FileResponse("dist/index.html")
+
+
+@app.get("/reset")
+async def reset():
+    global chat_history
+    chat_history = []
     return FileResponse("dist/index.html")
 
 
