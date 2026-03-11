@@ -399,7 +399,7 @@ async def upload_audio(file: UploadFile = File(...)):
 
 @app.post("/upload/text")
 async def upload_text(item: dict = Body(...)):
-    answer, _ = rag_ollama_answer(item['message'], chat_history)
+    answer, _ = rag_ollama_answer(item['message'].replace("?", ""), chat_history)
     return {
         "sources": None,
         "answer": answer
